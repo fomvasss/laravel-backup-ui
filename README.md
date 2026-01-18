@@ -19,7 +19,7 @@ A beautiful web interface for managing [spatie/laravel-backup](https://github.co
 
 ## Screenshots
 
-![Backup Management Interface](screenshot.png)
+![Backup Management Interface](screenshot.jpg)
 
 ## Requirements
 
