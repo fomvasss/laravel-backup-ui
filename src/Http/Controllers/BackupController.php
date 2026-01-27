@@ -7,6 +7,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Backup\BackupDestination\BackupDestinationFactory;
 use Spatie\Backup\Tasks\Monitor\BackupDestinationStatusFactory;
 use Carbon\Carbon;
@@ -39,8 +40,51 @@ class BackupController extends Controller
             'option' => 'nullable|in:only-db,only-files',
         ]);
 
+        $option = $request->get('option');
+
+        // Check if queue mode is enabled
+        if (config('backup-ui.queue.enabled', false)) {
+            return $this->createBackupAsync($option);
+        }
+
+        // Synchronous mode (original behavior)
+        return $this->createBackupSync($option);
+    }
+
+    /**
+     * Create backup asynchronously using queue
+     */
+    protected function createBackupAsync($option)
+    {
         try {
-            $option = $request->get('option');
+            // Generate unique progress key
+            $progressKey = 'backup_progress_' . uniqid();
+
+            // Dispatch job to queue
+            \Fomvasss\LaravelBackupUi\Jobs\CreateBackupJob::dispatch($option, $progressKey);
+
+            // Return response with progress key
+            return redirect()->route('backup-ui.index')->with([
+                'info' => 'Backup job has been queued. This page will update automatically when complete.',
+                'progress_key' => $progressKey,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to queue backup job', [
+                'option' => $option,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to queue backup: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create backup synchronously (original behavior)
+     */
+    protected function createBackupSync($option)
+    {
+        try {
             $commandOptions = [];
 
             // Handle different command signatures between v8 and v9
@@ -80,6 +124,40 @@ class BackupController extends Controller
         } catch (\Exception $e) {
             return back()->with('error', 'Backup failed: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get backup progress status (for Ajax polling)
+     */
+    public function status(Request $request)
+    {
+        $progressKey = $request->get('progress_key');
+
+        if (!$progressKey) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Progress key is required',
+            ], 400);
+        }
+
+        $progress = Cache::get($progressKey);
+
+        if (!$progress) {
+            return response()->json([
+                'success' => false,
+                'percentage' => 0,
+                'message' => 'Waiting for job to start...',
+                'status' => 'queued',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'percentage' => $progress['percentage'],
+            'message' => $progress['message'],
+            'status' => $progress['status'],
+            'updated_at' => $progress['updated_at'],
+        ]);
     }
 
 

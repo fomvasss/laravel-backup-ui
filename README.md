@@ -10,12 +10,14 @@ A beautiful web interface for managing [spatie/laravel-backup](https://github.co
 - 🎨 Modern Bootstrap 5 UI
 - 📊 Backup status monitoring
 - 🔄 Create backups (full, database-only, files-only)
+- ⚡ **Asynchronous backup creation via queues** (NEW!)
+- 📈 Real-time progress tracking with Ajax polling
 - 📥 Download backup files
 - 🗑️ Delete individual backups
 - 🧹 Clean old backups
 - 🔐 Flexible authentication system
 - 📱 Responsive design
-- ⚡ Real-time status updates
+- 🎯 Laravel Horizon support
 
 ## Screenshots
 
@@ -88,8 +90,41 @@ return [
     
     // Custom authorization callback
     'auth_callback' => null,
+    
+    // Queue configuration for async backup creation
+    'queue' => [
+        // Enable queue processing (set to false for synchronous backups)
+        'enabled' => false,
+        
+        // Queue name (leave null to use default queue)
+        'name' => null,
+    ],
 ];
 ```
+
+### Queue Support (Async Backups)
+
+For large databases or file backups that might timeout in a web request, you can enable asynchronous backup creation using Laravel queues:
+
+```php
+'queue' => [
+    'enabled' => true,
+    'name' => 'backups',
+],
+```
+
+**Benefits:**
+- ✅ No timeouts for large backups
+- ✅ Real-time progress tracking
+- ✅ Works with Laravel Horizon
+- ✅ Automatic retries on failure
+
+**Quick Start:**
+1. Enable in config: `'queue' => ['enabled' => true, 'name' => 'backups']`
+2. Start Horizon: `php artisan horizon`
+3. Create backup through UI
+
+For detailed documentation, see [QUEUE_SUPPORT.md](QUEUE_SUPPORT.md).
 
 ## Troubleshooting
 

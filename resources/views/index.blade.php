@@ -38,6 +38,13 @@
             </div>
         @endif
 
+        @if(session('info'))
+            <div class="alert alert-info alert-dismissible fade show" role="alert" id="queue-info-alert">
+                <i class="fas fa-info-circle me-2"></i>{{ session('info') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         @if(session('error'))
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}
@@ -201,15 +208,27 @@
 </form>
 
 <!-- Loading Modal -->
-<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
+<div class="modal fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog fa-spin me-2"></i>Creating Backup
+                </h5>
+            </div>
             <div class="modal-body text-center py-4">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Loading...</span>
+                <div class="progress mb-3" style="height: 25px;">
+                    <div id="backup-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar"
+                         style="width: 0%"
+                         aria-valuenow="0"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        0%
+                    </div>
                 </div>
-                <p class="mb-0">Creating backup...</p>
-                <small class="text-muted">This may take several minutes.</small>
+                <p id="backup-status-message" class="mb-2">Initializing backup...</p>
+                <small class="text-muted">This may take several minutes for large backups.</small>
             </div>
         </div>
     </div>
@@ -218,6 +237,14 @@
 
 @section('scripts')
 <script>
+// Configuration from backend
+const QUEUE_ENABLED = {{ config('backup-ui.queue.enabled', false) ? 'true' : 'false' }};
+const STATUS_URL = '{{ route('backup-ui.status') }}';
+const POLL_INTERVAL = 2000; // 2 seconds
+
+let pollingInterval = null;
+let loadingModal = null;
+
 function createBackup(option = '') {
     const messages = {
         '': 'Create a full backup (database + files)?',
@@ -227,8 +254,11 @@ function createBackup(option = '') {
 
     if (confirm(messages[option] + ' This may take some time.')) {
         // Show loading modal
-        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
         loadingModal.show();
+
+        // Reset progress
+        updateProgress(0, 'Initializing backup...');
 
         // Submit form
         document.getElementById('backup-option').value = option;
@@ -236,11 +266,92 @@ function createBackup(option = '') {
     }
 }
 
-// Hide loading modal on page load (in case of redirect back)
+function updateProgress(percentage, message, status = 'processing') {
+    const progressBar = document.getElementById('backup-progress-bar');
+    const statusMessage = document.getElementById('backup-status-message');
+
+    if (progressBar) {
+        progressBar.style.width = percentage + '%';
+        progressBar.setAttribute('aria-valuenow', percentage);
+        progressBar.textContent = percentage + '%';
+
+        // Update progress bar color based on status
+        progressBar.className = 'progress-bar progress-bar-striped';
+        if (status === 'success') {
+            progressBar.classList.add('bg-success');
+        } else if (status === 'error') {
+            progressBar.classList.add('bg-danger');
+        } else {
+            progressBar.classList.add('progress-bar-animated');
+        }
+    }
+
+    if (statusMessage) {
+        statusMessage.textContent = message;
+    }
+}
+
+function checkBackupProgress(progressKey) {
+    pollingInterval = setInterval(function() {
+        fetch(STATUS_URL + '?progress_key=' + progressKey)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success || data.status) {
+                    const percentage = data.percentage || 0;
+                    const message = data.message || 'Processing...';
+                    const status = data.status || 'processing';
+
+                    updateProgress(percentage, message, status);
+
+                    // Check if completed
+                    if (percentage >= 100 || status === 'success' || status === 'error') {
+                        clearInterval(pollingInterval);
+
+                        setTimeout(function() {
+                            if (loadingModal) {
+                                loadingModal.hide();
+                            }
+
+                            // Reload page to show new backup
+                            if (status === 'success') {
+                                window.location.reload();
+                            } else if (status === 'error') {
+                                // Show error and reload
+                                alert('Backup failed: ' + message);
+                                window.location.reload();
+                            }
+                        }, 1500);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error checking backup progress:', error);
+            });
+    }, POLL_INTERVAL);
+}
+
+// Check if we need to start polling on page load
 document.addEventListener('DOMContentLoaded', function() {
-    const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
-    if (loadingModal) {
-        loadingModal.hide();
+    // Check for progress_key in session (from redirect)
+    @if(session('progress_key'))
+        const progressKey = '{{ session('progress_key') }}';
+
+        // Show modal
+        loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+        loadingModal.show();
+
+        // Start polling
+        checkBackupProgress(progressKey);
+    @endif
+
+    // Clean up on modal hide
+    const modalElement = document.getElementById('loadingModal');
+    if (modalElement) {
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+        });
     }
 });
 </script>

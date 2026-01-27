@@ -2,6 +2,31 @@
 
 All notable changes to `laravel-backup-ui` will be documented in this file.
 
+## [1.1.0] - 2026-01-27
+
+### Added
+- **Asynchronous backup creation via Laravel Queues**
+- Real-time progress tracking with Ajax polling
+- CreateBackupJob for background backup processing
+- Progress tracking via Laravel Cache
+- Queue configuration options (enable/disable, queue name)
+- Status endpoint for Ajax progress checking
+- Enhanced modal UI with progress bar
+- Support for Laravel Horizon monitoring
+- Automatic retry mechanism (up to 3 attempts)
+- Detailed progress updates at different stages
+- Backward compatibility - queues can be disabled for synchronous operation
+- Comprehensive documentation (QUEUE_SUPPORT.md)
+
+### Changed
+- Updated loading modal with progress bar and real-time status updates
+- Enhanced JavaScript for Ajax polling and progress tracking
+- Improved error handling with detailed logging
+- Updated configuration file with queue settings
+
+### Fixed
+- Timeout issues for large database or file backups
+
 ## [1.0.0] - 2026-01-17
 
 ### Added
