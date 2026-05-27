@@ -32,7 +32,6 @@ class BackupUiServiceProvider extends ServiceProvider
         Route::group([
             'prefix' => config('backup-ui.route_prefix', 'admin/backup'),
             'middleware' => config('backup-ui.middleware', ['web']),
-            'namespace' => 'Fomvasss\LaravelBackupUi\Http\Controllers',
         ], function () {
             $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
         });
