@@ -10,6 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Fomvasss\LaravelBackupUi\Support\BackupOutputAnalyzer;
 
 class CreateBackupJob implements ShouldQueue
 {
@@ -46,13 +47,13 @@ class CreateBackupJob implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param string|null $option
      * @param string $progressKey
+     * @param string|null $option
      */
-    public function __construct($option = null, $progressKey)
+    public function __construct($progressKey, $option = null)
     {
-        $this->option = $option;
         $this->progressKey = $progressKey;
+        $this->option = $option;
         
         // Set queue from config
         $queue = config('backup-ui.queue.name');
@@ -73,7 +74,6 @@ class CreateBackupJob implements ShouldQueue
 
             $commandOptions = [];
 
-            // Handle different command signatures between v8 and v9
             if ($this->option === 'only-db') {
                 $commandOptions['--only-db'] = true;
                 $this->updateProgress(10, 'Preparing database backup...');
@@ -98,13 +98,7 @@ class CreateBackupJob implements ShouldQueue
             $this->updateProgress(90, 'Finalizing backup...');
 
             // Check for errors
-            if ($exitCode !== 0 || 
-                str_contains($output, 'failed') ||
-                str_contains($output, 'error') ||
-                str_contains($output, 'not found') ||
-                str_contains($output, 'mysqldump') ||
-                str_contains($output, 'pg_dump')) {
-
+            if ($exitCode !== 0 || BackupOutputAnalyzer::indicatesFailure($output)) {
                 $errorMsg = 'Backup failed. Check logs for details.';
                 if (config('backup-ui.show_detailed_errors', true)) {
                     $errorMsg = strip_tags($output);
@@ -128,7 +122,7 @@ class CreateBackupJob implements ShouldQueue
                 'progress_key' => $this->progressKey,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Backup job exception', [
                 'option' => $this->option,
                 'error' => $e->getMessage(),

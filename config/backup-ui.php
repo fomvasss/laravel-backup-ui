@@ -7,17 +7,11 @@ return [
 
     'page_title' => 'Backup Management',
 
-    'per_page' => 15,
-
     'allowed_users' => [
         // 'admin@example.com'
     ],
 
     'auth_callback' => null, // Custom auth callback function
-
-
-    // Timeout for sync backup operations (in seconds)
-    'timeout' => 300,
 
     // Show detailed error output for debugging
     'show_detailed_errors' => true,

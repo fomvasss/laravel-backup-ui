@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Fomvasss\LaravelBackupUi\Support\BackupOutputAnalyzer;
 use Carbon\Carbon;
 
 class BackupController extends Controller
@@ -59,7 +60,7 @@ class BackupController extends Controller
             $progressKey = 'backup_progress_' . uniqid();
 
             // Dispatch job to queue
-            \Fomvasss\LaravelBackupUi\Jobs\CreateBackupJob::dispatch($option, $progressKey);
+            \Fomvasss\LaravelBackupUi\Jobs\CreateBackupJob::dispatch($progressKey, $option);
 
             // Return response with progress key
             return redirect()->route('backup-ui.index')->with([
@@ -99,13 +100,7 @@ class BackupController extends Controller
 
             $output = Artisan::output();
 
-            // Check for common error patterns in output
-            if (str_contains($output, 'failed') ||
-                str_contains($output, 'error') ||
-                str_contains($output, 'not found') ||
-                str_contains($output, 'mysqldump') ||
-                str_contains($output, 'pg_dump')) {
-
+            if (BackupOutputAnalyzer::indicatesFailure($output)) {
                 // Show detailed error if configured
                 if (config('backup-ui.show_detailed_errors', true)) {
                     $errorMsg = 'Backup failed. Details: ' . strip_tags($output);

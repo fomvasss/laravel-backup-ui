@@ -61,7 +61,6 @@ abstract class TestCase extends Orchestra
             'route_prefix' => 'backup',
             'middleware' => ['web'],
             'page_title' => 'Test Backup Management',
-            'per_page' => 15,
             'allowed_users' => [],
             'auth_callback' => null,
         ]);

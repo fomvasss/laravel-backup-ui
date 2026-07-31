@@ -25,7 +25,7 @@ class CreateBackupJobTest extends TestCase
 
         $progressKey = 'backup_progress_test';
         
-        CreateBackupJob::dispatch(null, $progressKey);
+        CreateBackupJob::dispatch($progressKey);
 
         Queue::assertPushed(CreateBackupJob::class);
     }
@@ -36,7 +36,7 @@ class CreateBackupJobTest extends TestCase
         config(['backup-ui.queue.name' => 'test-queue']);
 
         $progressKey = 'backup_progress_test';
-        $job = new CreateBackupJob(null, $progressKey);
+        $job = new CreateBackupJob($progressKey);
 
         $this->assertEquals('test-queue', $job->queue);
     }
@@ -65,7 +65,7 @@ class CreateBackupJobTest extends TestCase
     /** @test */
     public function it_has_correct_timeout_settings()
     {
-        $job = new CreateBackupJob(null, 'test_key');
+        $job = new CreateBackupJob('test_key');
 
         $this->assertEquals(3600, $job->timeout);
         $this->assertEquals(3, $job->tries);
@@ -77,7 +77,7 @@ class CreateBackupJobTest extends TestCase
         $options = [null, 'only-db', 'only-files'];
 
         foreach ($options as $option) {
-            $job = new CreateBackupJob($option, 'test_key_' . $option);
+            $job = new CreateBackupJob('test_key_' . $option, $option);
             
             // Just verify the job can be created with different options
             $this->assertInstanceOf(CreateBackupJob::class, $job);
