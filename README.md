@@ -3,31 +3,20 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/fomvasss/laravel-backup-ui.svg?style=flat-square)](https://packagist.org/packages/fomvasss/laravel-backup-ui)
 [![Total Downloads](https://img.shields.io/packagist/dt/fomvasss/laravel-backup-ui.svg?style=flat-square)](https://packagist.org/packages/fomvasss/laravel-backup-ui)
 
-## Support
-
-If this package is useful to you, consider supporting its development:
-
-[![Monobank](https://img.shields.io/badge/Donate-Monobank-black)](https://send.monobank.ua/jar/5xsqtHvVrY)
-[![Ko-Fi](https://img.shields.io/badge/Donate-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/fomvasss)
-[![USDT TRC20](https://img.shields.io/badge/Donate-USDT%20TRC20-26A17B?logo=tether&logoColor=white)](https://link.trustwallet.com/send?coin=195&address=THLgp6DxiAtbNHvgnKV56vk1L38UuUagKf&token_id=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t)
-
-> USDT TRC20 address: `THLgp6DxiAtbNHvgnKV56vk1L38UuUagKf`
-
 A beautiful web interface for managing [spatie/laravel-backup](https://github.com/spatie/laravel-backup) package. Built with Bootstrap 5 and designed to be easily integrated into any Laravel admin panel.
 
 ## Features
 
-- 🎨 Modern Bootstrap 5 UI
-- 📊 Backup status monitoring
-- 🔄 Create backups (full, database-only, files-only)
-- ⚡ **Asynchronous backup creation via queues** (NEW!)
-- 📈 Real-time progress tracking with Ajax polling
-- 📥 Download backup files
-- 🗑️ Delete individual backups
-- 🧹 Clean old backups
-- 🔐 Flexible authentication system
-- 📱 Responsive design
-- 🎯 Laravel Horizon support
+- Convenient web UI, built with Bootstrap 5
+- Backup status monitoring
+- Create backups (full, database-only, files-only)
+- Restore a backup's database dump (local environment only)
+- Asynchronous backup creation and restore via queues, with real-time progress tracking
+- Download and delete individual backups
+- Clean old backups
+- Flexible authentication system
+- Responsive design
+- Laravel Horizon support
 
 ## Screenshots
 
@@ -35,25 +24,11 @@ A beautiful web interface for managing [spatie/laravel-backup](https://github.co
 
 ## Requirements
 
-- PHP ^8.0
-- Laravel ^9.0|^10.0|^11.0|^12.0
-- spatie/laravel-backup ^8.0|^9.0
+- PHP ^8.2
+- Laravel ^10.10|^11.0|^12.0|^13.0
+- spatie/laravel-backup ^9.0|^10.0
 
-## Version Compatibility
-
-This package supports both major versions of spatie/laravel-backup and multiple Laravel versions:
-
-- **spatie/laravel-backup v8.x**: Full compatibility with existing API
-- **spatie/laravel-backup v9.x**: Automatic adaptation to new API structure
-- **Laravel 9.x, 10.x, 11.x, 12.x**: Full framework compatibility
-
-The package automatically detects the installed version and adapts accordingly:
-- Command signatures are handled for both versions
-- API changes in BackupDestinationStatusFactory are automatically managed
-- Storage calculation methods work with both versions
-- Error handling is improved for both versions
-
-For detailed Laravel v12 compatibility information, see [LARAVEL-V12-COMPATIBILITY.md](LARAVEL-V12-COMPATIBILITY.md).
+> **Note:** since v2.0.0 this package no longer supports `spatie/laravel-backup` v8. If you're on v8, stay on `^1.4` of this package or upgrade `spatie/laravel-backup` first — see the [v9 upgrade guide](https://github.com/spatie/laravel-backup/blob/main/UPGRADING.md) and [v10 upgrade guide](https://github.com/spatie/laravel-backup/blob/main/UPGRADING.md).
 
 ## Installation
 
@@ -90,9 +65,6 @@ return [
     // Page title
     'page_title' => 'Backup Management',
     
-    // Number of backups per page
-    'per_page' => 15,
-    
     // Specific users allowed to access (empty = all authenticated users)
     'allowed_users' => [
         // 'admin@example.com'
@@ -123,71 +95,38 @@ For large databases or file backups that might timeout in a web request, you can
 ],
 ```
 
-**Benefits:**
-- ✅ No timeouts for large backups
-- ✅ Real-time progress tracking
-- ✅ Works with Laravel Horizon
-- ✅ Automatic retries on failure
+Retries on failure: 3 attempts for creation, 1 for restore (a failed restore may have left the database in a partial state, so it isn't blindly retried).
 
-**Quick Start:**
-1. Enable in config: `'queue' => ['enabled' => true, 'name' => 'backups']`
-2. Start Horizon: `php artisan horizon`
-3. Create backup through UI
+The same queue setting is used for both backup creation and restore — both dispatch a job, write progress to Cache, and are polled by the same modal via `GET /backup/status?progress_key=...`.
 
-For detailed documentation, see [QUEUE_SUPPORT.md](QUEUE_SUPPORT.md).
+**Example Horizon config** (`config/horizon.php`):
 
-## Troubleshooting
+```php
+'environments' => [
+    'production' => [
+        'backups' => [
+            'connection' => 'redis',
+            'queue' => ['backups'],
+            'balance' => 'simple',
+            'processes' => 1,
+            'timeout' => 3600, // large backups/restores can take a while
+            'tries' => 2,
+        ],
+    ],
+],
+```
 
-### "mysqldump: not found" Error
+**Troubleshooting:**
+- *Jobs not processing* — confirm a worker is actually running (`php artisan horizon` or `php artisan queue:work --queue=backups`) and that it's listening to the queue name from `backup-ui.queue.name`.
+- *Progress modal doesn't appear or gets stuck* — check `storage/logs/laravel.log` for the job's own exceptions (a job that fails before writing to Cache, e.g. due to a file permission error, leaves the last known progress state visible indefinitely). If you run separate containers for web and queue workers, make sure both can write to the same log/cache.
 
-If you encounter the error `sh: 1: mysqldump: not found` when creating backups through the web interface, this is because the web server doesn't have the same PATH as your console.
-
-**Solutions:**
-
-1. **Install MySQL client tools on your server:**
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install default-mysql-client
-   
-   # CentOS/RHEL  
-   sudo yum install mysql
-   
-   # For Laradock users
-   docker exec laradock_php-fpm_1 apt-get update
-   docker exec laradock_php-fpm_1 apt-get install -y default-mysql-client
-   ```
-
-2. **Set environment PATH in your web server configuration:**
-   ```apache
-   # Apache
-   SetEnv PATH "/usr/local/bin:/usr/bin:/bin"
-   ```
-   
-   ```nginx
-   # Nginx + PHP-FPM
-   # Add to pool configuration
-   env[PATH] = /usr/local/bin:/usr/bin:/bin
-   ```
-
-The mysqldump tool should be properly configured at the server level, not at the application level.
-
-### "Backup file not found" when downloading
-
-If existing backups show in the list but fail to download with "Backup file not found", this is because spatie/laravel-backup stores files in date-organized subdirectories.
-
-**The package automatically handles this by:**
-- Searching for files in spatie's date-based directory structure (`backup-name/YYYY/MM/DD/file.zip`)
-- Looking through all subdirectories for matching filenames
-- Supporting files with special characters in names
-
-**For debugging, check Laravel logs for detailed file search information.**
-
-### External Disk Support (S3, FTP, Google Cloud, etc.)
+## External Disk Support (S3, FTP, Google Cloud, etc.)
 
 The package fully supports external backup disks including:
 
 - **Amazon S3** (`s3`)
-- **Google Cloud Storage** (`gcs`, `google`)
+- **Google Cloud Storage** (`gcs`)
+- **Google Drive** (`google`) — via [masbug/flysystem-google-drive-ext](https://github.com/masbug/flysystem-google-drive-ext), not bundled with this package
 - **FTP/SFTP** (`ftp`, `sftp`)
 - **Dropbox** (`dropbox`)
 - **Other Laravel filesystem drivers**
@@ -244,7 +183,7 @@ The package fully supports external backup disks including:
 
 ## Usage
 
-After installation, the backup interface will be available at `/admin/backup` (or your configured route prefix).
+After installation, the backup interface will be available at `/backup` (or your configured route prefix).
 
 ### Basic Usage
 
@@ -253,6 +192,23 @@ After installation, the backup interface will be available at `/admin/backup` (o
 3. **Download**: Click the download button next to any backup to download it
 4. **Delete**: Click the trash icon to delete individual backups
 5. **Clean**: Use the "Clean Old" button to remove old backups according to your retention policy
+6. **Restore** (local environment only): Click the restore button next to a backup to restore its database dump into your local database — see below
+
+### Restoring a Backup
+
+Restoring overwrites your database, so it only ever runs when `APP_ENV=local` — the "Restore" button is neither rendered nor functional (403) in any other environment, and there is no restore route/action available at all outside local. Currently only `mysql`/`mariadb` connections are supported.
+
+**From the UI:** click the restore icon next to any listed backup (any configured disk — local, S3, Google Drive, etc.). It downloads the archive if needed, extracts the `db-dumps/*.sql` file matching your current `database.default` connection, asks for confirmation, and runs the import. Runs synchronously or via queue depending on `backup-ui.queue.enabled`, same as backup creation.
+
+**From the console**, for a backup file you already have locally (e.g. downloaded from another environment):
+
+```bash
+php artisan backup-ui:restore /path/to/backup.zip
+# or restore into a specific connection:
+php artisan backup-ui:restore /path/to/backup.zip --connection=mysql
+```
+
+The command guards on `APP_ENV=local` the same way, asks for confirmation before overwriting, and prompts you to pick a dump if the archive contains more than one and none matches the target connection by name.
 
 ### Custom Authentication
 
@@ -277,27 +233,7 @@ You can implement custom authentication by setting the `auth_callback` in the co
 
 ### Integration with Admin Panels
 
-The package is designed to be easily integrated into existing admin panels:
-
-#### Laravel Nova
-```php
-// In your Nova dashboard
-Menu::make('Backup Management', '/admin/backup')
-    ->icon('database')
-    ->external();
-```
-
-#### Filament
-```php
-// In your Filament panel
-NavigationItem::make('Backups')
-    ->url('/admin/backup')
-    ->icon('heroicon-o-circle-stack')
-    ->external();
-```
-
-#### Custom Admin Panel
-Simply add a link to `/admin/backup` in your admin navigation menu.
+Simply add a link to `/backup` in your admin navigation menu.
 
 ## Customization
 
@@ -311,10 +247,6 @@ php artisan vendor:publish --tag=backup-ui-views
 
 The views will be published to `resources/views/vendor/backup-ui/`.
 
-### Styling
-
-The package uses Bootstrap 5 classes. You can override styles by publishing the views and modifying the CSS, or by including your own CSS after the Bootstrap CSS.
-
 ## Security
 
 The package includes several security measures:
@@ -325,13 +257,25 @@ The package includes several security measures:
 - File existence validation before downloads
 - Path traversal protection
 
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
 ## Security Vulnerabilities
 
 If you discover a security vulnerability within this package, please send an e-mail to the author via email. All security vulnerabilities will be promptly addressed.
+
+## Support
+
+If you find this package helpful, please consider starring the repository and sharing it with others!
+
+If this package is useful to you, consider supporting its development:
+
+[![Monobank](https://img.shields.io/badge/Donate-Monobank-black)](https://send.monobank.ua/jar/5xsqtHvVrY)
+[![Ko-Fi](https://img.shields.io/badge/Donate-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/fomvasss)
+[![USDT TRC20](https://img.shields.io/badge/Donate-USDT%20TRC20-26A17B?logo=tether&logoColor=white)](https://link.trustwallet.com/send?coin=195&address=THLgp6DxiAtbNHvgnKV56vk1L38UuUagKf&token_id=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t)
+
+> USDT TRC20 address: `THLgp6DxiAtbNHvgnKV56vk1L38UuUagKf`
+
+## Contributing
+
+Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
 
 ## Credits
 
@@ -341,7 +285,3 @@ If you discover a security vulnerability within this package, please send an e-m
 ## License
 
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
-
-## Support
-
-If you find this package helpful, please consider starring the repository and sharing it with others!

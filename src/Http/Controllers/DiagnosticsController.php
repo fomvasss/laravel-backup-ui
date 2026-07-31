@@ -31,7 +31,7 @@ class DiagnosticsController extends Controller
                     return $package['version'];
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return 'Unknown';
         }
 
@@ -53,7 +53,7 @@ class DiagnosticsController extends Controller
                         'writable' => is_writable($path),
                     ];
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $directories[$disk] = ['error' => $e->getMessage()];
             }
         }
@@ -78,7 +78,7 @@ class DiagnosticsController extends Controller
                 try {
                     $disk->allFiles();
                     $isReachable = true;
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $error = $e->getMessage();
                 }
 
@@ -90,7 +90,7 @@ class DiagnosticsController extends Controller
                     'error' => $error,
                 ];
 
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $disks[$diskName] = [
                     'driver' => 'unknown',
                     'reachable' => false,

@@ -4,6 +4,7 @@ namespace Fomvasss\LaravelBackupUi;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use Fomvasss\LaravelBackupUi\Console\Commands\RestoreBackupCommand;
 
 class BackupUiServiceProvider extends ServiceProvider
 {
@@ -25,14 +26,19 @@ class BackupUiServiceProvider extends ServiceProvider
         ], 'backup-ui-views');
 
         $this->registerRoutes();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                RestoreBackupCommand::class,
+            ]);
+        }
     }
 
     protected function registerRoutes()
     {
         Route::group([
-            'prefix' => config('backup-ui.route_prefix', 'admin/backup'),
+            'prefix' => config('backup-ui.route_prefix', 'backup'),
             'middleware' => config('backup-ui.middleware', ['web']),
-            'namespace' => 'Fomvasss\LaravelBackupUi\Http\Controllers',
         ], function () {
             $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
         });

@@ -14,6 +14,7 @@ class QueueBackupTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+        $this->actingAs($this->createUser());
     }
 
     /** @test */
@@ -26,8 +27,8 @@ class QueueBackupTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        // In sync mode, we don't expect a progress_key in session
-        $this->assertNull(session('progress_key'));
+        // In sync mode, we don't expect an active_progress_key in session
+        $this->assertNull(session('active_progress_key'));
     }
 
     /** @test */
@@ -43,7 +44,7 @@ class QueueBackupTest extends TestCase
         Queue::assertPushed(CreateBackupJob::class);
         $response->assertRedirect();
         $response->assertSessionHas('info');
-        $response->assertSessionHas('progress_key');
+        $response->assertSessionHas('active_progress_key');
     }
 
     /** @test */

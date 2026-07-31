@@ -15,19 +15,20 @@ class NewestBackupDateTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+        $this->actingAs($this->createUser());
     }
 
     /** @test */
     public function it_handles_newest_backup_date_correctly()
     {
         // Create a backup file with known timestamp
-        $backupFile = 'laravel-backup-test.zip';
+        $backupFile = 'test-backup-file.zip';
         Storage::disk('local')->put($backupFile, 'test content');
 
         // Touch the file to set specific timestamp (1 hour ago)
         $timestamp = now()->subHour()->timestamp;
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $response->assertViewHas('backupDestinations');
@@ -57,7 +58,7 @@ class NewestBackupDateTest extends TestCase
     public function it_shows_none_when_no_backups_exist()
     {
         // No backup files created
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
 
@@ -69,10 +70,10 @@ class NewestBackupDateTest extends TestCase
     public function it_handles_multiple_backups_and_shows_newest()
     {
         // Create multiple backup files
-        Storage::disk('local')->put('laravel-backup-old.zip', 'old backup');
-        Storage::disk('local')->put('laravel-backup-new.zip', 'new backup');
+        Storage::disk('local')->put('test-backup-old.zip', 'old backup');
+        Storage::disk('local')->put('test-backup-new.zip', 'new backup');
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $backupDestinations = $response->viewData('backupDestinations');

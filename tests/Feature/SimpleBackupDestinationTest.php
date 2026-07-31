@@ -14,6 +14,7 @@ class SimpleBackupDestinationTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+        $this->actingAs($this->createUser());
     }
 
     /** @test */
@@ -24,7 +25,7 @@ class SimpleBackupDestinationTest extends TestCase
         Storage::disk('local')->put('laravel-backup-2024-01-16-14-30-00.zip', 'fake backup content 2');
         Storage::disk('local')->put('not-a-backup.txt', 'not a backup file');
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $response->assertViewHas('backupDestinations');
@@ -54,7 +55,7 @@ class SimpleBackupDestinationTest extends TestCase
     public function it_handles_empty_backup_directories()
     {
         // No backup files on disk
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $backupDestinations = $response->viewData('backupDestinations');
@@ -74,7 +75,7 @@ class SimpleBackupDestinationTest extends TestCase
         $content = str_repeat('x', 2048); // 2KB content
         Storage::disk('local')->put('laravel-backup-test.zip', $content);
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $backupDestinations = $response->viewData('backupDestinations');
@@ -95,7 +96,7 @@ class SimpleBackupDestinationTest extends TestCase
         // Set up config with non-existent disk
         $this->app['config']->set('backup.backup.destination.disks', ['non-existent']);
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $backupDestinations = $response->viewData('backupDestinations');
