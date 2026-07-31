@@ -2,6 +2,23 @@
 
 All notable changes to `laravel-backup-ui` will be documented in this file.
 
+## [2.0.0] - 2026-07-31
+
+### Changed
+- **Breaking:** dropped support for `spatie/laravel-backup` v8; now requires `^9.0|^10`
+- **Breaking:** raised minimum PHP to `^8.2`
+- **Breaking:** raised minimum Laravel to `^10.10|^11|^12|^13` (dropped Laravel 9)
+- Default `route_prefix` fallback in the service provider now matches the shipped config (`backup`, was `admin/backup`)
+- Controller error handling now catches `\Throwable` instead of `\Exception`, so a disk with a missing Flysystem adapter (e.g. S3 without `league/flysystem-aws-s3-v3`) is reported as unreachable instead of crashing the whole page
+- Backup destination arrays (including the unreachable/error fallback) now always include a `driver` key
+
+### Removed
+- Dead spatie/laravel-backup v8/v9 API-detection code from `BackupController` (`createBackupDestination()`, `isVersion9OrHigher()`, `getSpatieBackupApiVersion()`) — none of it was ever called
+- Unused `BackupUiAuth` middleware — never registered on any route, duplicated the authorization check already done in `BackupController`
+
+### Fixed
+- `download()` no longer turns a missing-file `404` into a `302` redirect (the `abort(404)` was being swallowed by the method's own catch block)
+
 ## [1.1.0] - 2026-01-27
 
 ### Added

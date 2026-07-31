@@ -18,7 +18,7 @@ class BackupUiServiceProviderTest extends TestCase
     public function it_merges_configuration()
     {
         $this->assertNotNull(config('backup-ui'));
-        $this->assertEquals('admin/backup', config('backup-ui.route_prefix'));
+        $this->assertEquals('backup', config('backup-ui.route_prefix'));
         $this->assertEquals('Test Backup Management', config('backup-ui.page_title'));
     }
 
@@ -42,11 +42,11 @@ class BackupUiServiceProviderTest extends TestCase
 
         // Check that backup UI routes are registered
         $this->assertTrue($routes->contains(function ($route) {
-            return $route['name'] === 'backup-ui.index' && $route['uri'] === 'admin/backup';
+            return $route['name'] === 'backup-ui.index' && $route['uri'] === 'backup';
         }));
 
         $this->assertTrue($routes->contains(function ($route) {
-            return $route['name'] === 'backup-ui.create' && $route['uri'] === 'admin/backup/create';
+            return $route['name'] === 'backup-ui.create' && $route['uri'] === 'backup/create';
         }));
 
         $this->assertTrue($routes->contains(function ($route) {
@@ -58,7 +58,7 @@ class BackupUiServiceProviderTest extends TestCase
         }));
 
         $this->assertTrue($routes->contains(function ($route) {
-            return $route['name'] === 'backup-ui.clean' && $route['uri'] === 'admin/backup/clean';
+            return $route['name'] === 'backup-ui.clean' && $route['uri'] === 'backup/clean';
         }));
     }
 

@@ -32,6 +32,7 @@ composer.lock
 # Testing
 coverage.xml
 phpunit.xml
+.phpunit.cache/
 
 # Documentation debug files (should not be in package)
 *PROBLEM-SOLVED*

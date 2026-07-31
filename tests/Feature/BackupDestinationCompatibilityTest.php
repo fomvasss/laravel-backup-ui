@@ -14,12 +14,13 @@ class BackupDestinationCompatibilityTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+        $this->actingAs($this->createUser());
     }
 
     /** @test */
     public function it_handles_backup_destination_creation_gracefully()
     {
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $response->assertViewHas('backupDestinations');
@@ -46,7 +47,7 @@ class BackupDestinationCompatibilityTest extends TestCase
     public function it_shows_error_message_for_incompatible_api()
     {
         // This test ensures errors are displayed to user rather than crashing
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         // Page should load even if there are API compatibility issues

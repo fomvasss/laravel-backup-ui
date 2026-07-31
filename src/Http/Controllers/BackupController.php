@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
-use Spatie\Backup\BackupDestination\BackupDestinationFactory;
-use Spatie\Backup\Tasks\Monitor\BackupDestinationStatusFactory;
 use Carbon\Carbon;
 
 class BackupController extends Controller
@@ -69,7 +67,7 @@ class BackupController extends Controller
                 'progress_key' => $progressKey,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to queue backup job', [
                 'option' => $option,
                 'error' => $e->getMessage(),
@@ -87,14 +85,12 @@ class BackupController extends Controller
         try {
             $commandOptions = [];
 
-            // Handle different command signatures between v8 and v9
             if ($option === 'only-db') {
                 $commandOptions['--only-db'] = true;
             } elseif ($option === 'only-files') {
                 $commandOptions['--only-files'] = true;
             }
 
-            // Support for both v8 and v9 command syntax
             if (!empty($commandOptions)) {
                 Artisan::call('backup:run', $commandOptions);
             } else {
@@ -121,7 +117,7 @@ class BackupController extends Controller
             }
 
             return back()->with('success', 'Backup created successfully!');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Backup failed: ' . $e->getMessage());
         }
     }
@@ -209,7 +205,9 @@ class BackupController extends Controller
             ]);
 
             abort(404, 'Backup file not found');
-        } catch (\Exception $e) {
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Throwable $e) {
             Log::error("Backup UI: Download failed", [
                 'disk' => $disk,
                 'path' => $path,
@@ -280,7 +278,7 @@ class BackupController extends Controller
                 }
             }
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // If we can't search, return null
             return null;
         }
@@ -319,7 +317,7 @@ class BackupController extends Controller
             }
 
             return back()->with('error', 'Backup file not found');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Delete failed: ' . $e->getMessage());
         }
     }
@@ -327,7 +325,6 @@ class BackupController extends Controller
     public function clean()
     {
         try {
-            // Support for both v8 and v9 clean command
             $exitCode = Artisan::call('backup:clean');
 
             if ($exitCode === 0) {
@@ -335,7 +332,7 @@ class BackupController extends Controller
             } else {
                 return back()->with('error', 'Clean command completed with warnings. Check logs for details.');
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return back()->with('error', 'Clean failed: ' . $e->getMessage());
         }
     }
@@ -350,7 +347,7 @@ class BackupController extends Controller
                 $backupDestination = $this->createSimpleBackupDestination($diskName);
 
                 $backupDestinations->push($backupDestination);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $backupDestinations->push([
                     'name' => $diskName,
                     'reachable' => false,
@@ -360,6 +357,7 @@ class BackupController extends Controller
                     'newest' => null,
                     'usedStorage' => '0 KB',
                     'backups' => [],
+                    'driver' => config("filesystems.disks.$diskName.driver", 'unknown'),
                 ]);
             }
         }
@@ -388,6 +386,7 @@ class BackupController extends Controller
                     'newest' => null,
                     'usedStorage' => '0 KB',
                     'backups' => [],
+                    'driver' => $diskDriver,
                 ];
             }
 
@@ -424,7 +423,7 @@ class BackupController extends Controller
                     return $b['last_modified'] - $a['last_modified'];
                 });
 
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // If we can't read files, return basic info
                 Log::warning("Backup UI: Could not read files from disk '{$diskName}'", [
                     'driver' => $diskDriver,
@@ -460,7 +459,7 @@ class BackupController extends Controller
                 'driver' => $diskDriver,
             ];
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error("Backup UI: Failed to process backup destination '{$diskName}'", [
                 'error' => $e->getMessage()
             ]);
@@ -478,7 +477,7 @@ class BackupController extends Controller
                     try {
                         $disk->allFiles();
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return false;
                     }
 
@@ -488,7 +487,7 @@ class BackupController extends Controller
                     try {
                         $disk->allFiles();
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return false;
                     }
 
@@ -498,7 +497,7 @@ class BackupController extends Controller
                     try {
                         $disk->allFiles();
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return false;
                     }
 
@@ -509,7 +508,7 @@ class BackupController extends Controller
                         // Try to perform basic disk operations
                         $disk->allFiles();
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return false;
                     }
 
@@ -518,11 +517,11 @@ class BackupController extends Controller
                     try {
                         $disk->allFiles();
                         return true;
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         return false;
                     }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return false;
         }
     }
@@ -531,7 +530,7 @@ class BackupController extends Controller
     {
         try {
             return $disk->size($file);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Some drivers might not support size() method
             Log::warning("Backup UI: Could not get file size for '{$file}' on driver '{$driver}'", [
                 'error' => $e->getMessage()
@@ -544,7 +543,7 @@ class BackupController extends Controller
     {
         try {
             return $disk->lastModified($file);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Some drivers might not support lastModified() method
             Log::warning("Backup UI: Could not get last modified time for '{$file}' on driver '{$driver}'", [
                 'error' => $e->getMessage()
@@ -564,99 +563,6 @@ class BackupController extends Controller
         return round($bytes, $precision) . ' ' . $units[$i];
     }
 
-    protected function createBackupDestination($diskName)
-    {
-        // Try different approaches based on available API versions
-
-        // Method 1: Try with Config object (newer versions)
-        if (class_exists('Spatie\Backup\Config\Config')) {
-            try {
-                $configClass = 'Spatie\Backup\Config\Config';
-
-                // Use the full config structure that Config expects
-                $configData = config('backup');
-
-                // Create Config object using static method
-                if (method_exists($configClass, 'createFromArray')) {
-                    $config = $configClass::createFromArray($configData);
-                } elseif (method_exists($configClass, 'createFromConfig')) {
-                    $config = $configClass::createFromConfig($configData);
-                } else {
-                    // Try using Laravel's config() helper with Config class
-                    $reflection = new \ReflectionClass($configClass);
-                    if ($reflection->hasMethod('createFromConfigKey')) {
-                        $config = $configClass::createFromConfigKey('backup');
-                    } else {
-                        throw new \Exception('Unable to create Config object - no suitable factory method found');
-                    }
-                }
-
-                // Now create BackupDestination using the config
-                return BackupDestinationFactory::createFromArray($config);
-            } catch (\Exception $e) {
-                // Fall through to next method
-            }
-        }
-
-        // Method 2: Try direct creation with BackupDestination constructor
-        if (class_exists('Spatie\Backup\BackupDestination\BackupDestination')) {
-            try {
-                $backupDestinationClass = 'Spatie\Backup\BackupDestination\BackupDestination';
-                $disk = Storage::disk($diskName);
-                $backupName = config('backup.backup.name');
-
-                return new $backupDestinationClass($disk, $backupName);
-            } catch (\Exception $e) {
-                // Fall through to next method
-            }
-        }
-
-        // Method 3: Try using BackupDestinationFactory with different approaches
-        try {
-            // First try: see if we can call it with just the disk name
-            if (method_exists(BackupDestinationFactory::class, 'create')) {
-                return BackupDestinationFactory::create($diskName, config('backup.backup.name'));
-            }
-
-            // Second try: legacy array method (older versions)
-            return BackupDestinationFactory::createFromArray([
-                'disk' => $diskName,
-                'backup_name' => config('backup.backup.name'),
-            ]);
-        } catch (\Exception $e) {
-            // Method 4: Fallback to manual BackupDestination creation
-            try {
-                // Try to find any BackupDestination class and create it manually
-                $possibleClasses = [
-                    'Spatie\Backup\BackupDestination\BackupDestination',
-                    'Spatie\Backup\Backup\BackupDestination',
-                ];
-
-                foreach ($possibleClasses as $className) {
-                    if (class_exists($className)) {
-                        $disk = Storage::disk($diskName);
-                        $backupName = config('backup.backup.name');
-
-                        // Try different constructor signatures
-                        try {
-                            return new $className($disk, $backupName);
-                        } catch (\Exception $ex) {
-                            try {
-                                return new $className($disk, $backupName, []);
-                            } catch (\Exception $ex2) {
-                                continue;
-                            }
-                        }
-                    }
-                }
-
-                throw new \Exception("Unable to create backup destination for disk '{$diskName}': " . $e->getMessage());
-            } catch (\Exception $fallbackException) {
-                throw new \Exception("All methods failed to create backup destination for disk '{$diskName}'. Original error: " . $e->getMessage() . ". Fallback error: " . $fallbackException->getMessage());
-            }
-        }
-    }
-
     protected function calculateUsedStorage($backups)
     {
         $totalSize = $backups->sum('size_in_kb');
@@ -668,25 +574,6 @@ class BackupController extends Controller
         } else {
             return round($totalSize / 1048576, 2) . ' GB';
         }
-    }
-
-    protected function getSpatieBackupVersion()
-    {
-        $composer = json_decode(file_get_contents(base_path('composer.lock')), true);
-
-        foreach ($composer['packages'] as $package) {
-            if ($package['name'] === 'spatie/laravel-backup') {
-                return $package['version'];
-            }
-        }
-
-        return null;
-    }
-
-    protected function isVersion9OrHigher()
-    {
-        $version = $this->getSpatieBackupVersion();
-        return $version && version_compare($version, '9.0.0', '>=');
     }
 
     protected function isAuthorized()
@@ -704,20 +591,5 @@ class BackupController extends Controller
         }
 
         return auth()->check() && in_array(auth()->user()->email, $allowedUsers);
-    }
-
-    protected function getSpatieBackupApiVersion()
-    {
-        // Check for v9+ API by looking for Config class
-        if (class_exists('Spatie\Backup\Config\Config')) {
-            return 9;
-        }
-
-        // Check for v8 API structure
-        if (method_exists(BackupDestinationFactory::class, 'createFromArray')) {
-            return 8;
-        }
-
-        return null;
     }
 }

@@ -24,6 +24,7 @@ abstract class TestCase extends Orchestra
     protected function getEnvironmentSetUp($app)
     {
         // Set up test environment
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
         $app['config']->set('database.default', 'sqlite');
         $app['config']->set('database.connections.sqlite', [
             'driver' => 'sqlite',
@@ -57,7 +58,7 @@ abstract class TestCase extends Orchestra
 
         // Backup UI configuration
         $app['config']->set('backup-ui', [
-            'route_prefix' => 'admin/backup',
+            'route_prefix' => 'backup',
             'middleware' => ['web'],
             'page_title' => 'Test Backup Management',
             'per_page' => 15,

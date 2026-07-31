@@ -35,23 +35,11 @@ A beautiful web interface for managing [spatie/laravel-backup](https://github.co
 
 ## Requirements
 
-- PHP ^8.0
-- Laravel ^9.0|^10.0|^11.0|^12.0
-- spatie/laravel-backup ^8.0|^9.0
+- PHP ^8.2
+- Laravel ^10.10|^11.0|^12.0|^13.0
+- spatie/laravel-backup ^9.0|^10.0
 
-## Version Compatibility
-
-This package supports both major versions of spatie/laravel-backup and multiple Laravel versions:
-
-- **spatie/laravel-backup v8.x**: Full compatibility with existing API
-- **spatie/laravel-backup v9.x**: Automatic adaptation to new API structure
-- **Laravel 9.x, 10.x, 11.x, 12.x**: Full framework compatibility
-
-The package automatically detects the installed version and adapts accordingly:
-- Command signatures are handled for both versions
-- API changes in BackupDestinationStatusFactory are automatically managed
-- Storage calculation methods work with both versions
-- Error handling is improved for both versions
+> **Note:** since v2.0.0 this package no longer supports `spatie/laravel-backup` v8. If you're on v8, stay on `^1.4` of this package or upgrade `spatie/laravel-backup` first — see the [v9 upgrade guide](https://github.com/spatie/laravel-backup/blob/main/UPGRADING.md) and [v10 upgrade guide](https://github.com/spatie/laravel-backup/blob/main/UPGRADING.md).
 
 For detailed Laravel v12 compatibility information, see [LARAVEL-V12-COMPATIBILITY.md](LARAVEL-V12-COMPATIBILITY.md).
 

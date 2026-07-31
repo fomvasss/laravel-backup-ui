@@ -140,48 +140,9 @@ class BackupControllerUnitTest extends TestCase
     }
 
     /** @test */
-    public function it_detects_spatie_backup_version()
-    {
-        // Mock composer.lock content
-        $composerLock = [
-            'packages' => [
-                [
-                    'name' => 'other/package',
-                    'version' => '1.0.0'
-                ],
-                [
-                    'name' => 'spatie/laravel-backup',
-                    'version' => '8.5.0'
-                ]
-            ]
-        ];
-
-        // Create a temporary composer.lock file
-        $tempFile = tempnam(sys_get_temp_dir(), 'composer_lock_');
-        file_put_contents($tempFile, json_encode($composerLock));
-
-        // Mock base_path function to return our temp file
-        $this->app->instance('path.base', dirname($tempFile));
-
-        $reflection = new \ReflectionClass($this->controller);
-        $method = $reflection->getMethod('getSpatieBackupVersion');
-        $method->setAccessible(true);
-
-        // We'll need to modify the method to use our test file
-        // For now, let's test the version comparison logic
-        $isV9Method = $reflection->getMethod('isVersion9OrHigher');
-        $isV9Method->setAccessible(true);
-
-        // Clean up
-        unlink($tempFile);
-
-        $this->assertTrue(true); // Placeholder assertion
-    }
-
-    /** @test */
     public function it_handles_request_validation_for_backup_creation()
     {
-        $request = Request::create('/admin/backup/create', 'POST', [
+        $request = Request::create('/backup/create', 'POST', [
             'option' => 'only-db'
         ]);
 

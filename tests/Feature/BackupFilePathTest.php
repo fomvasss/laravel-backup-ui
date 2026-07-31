@@ -14,6 +14,7 @@ class BackupFilePathTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+        $this->actingAs($this->createUser());
     }
 
     /** @test */
@@ -46,7 +47,7 @@ class BackupFilePathTest extends TestCase
         Storage::disk('local')->put($backupPath, 'fake backup content');
 
         // Try to download using just the filename (as the view does)
-        $response = $this->get('/admin/backup/download/local/' . urlencode('backup-2024-01-17-14-30-00.zip'));
+        $response = $this->get('/backup/download/local/' . urlencode('backup-2024-01-17-14-30-00.zip'));
 
         $response->assertStatus(200);
         $response->assertHeader('content-disposition');
@@ -63,7 +64,7 @@ class BackupFilePathTest extends TestCase
         Storage::disk('local')->assertExists($backupPath);
 
         // Try to delete using just the filename
-        $response = $this->delete('/admin/backup/delete/local/' . urlencode('backup-2024-01-17-14-30-00.zip'));
+        $response = $this->delete('/backup/delete/local/' . urlencode('backup-2024-01-17-14-30-00.zip'));
 
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Backup deleted successfully!');
@@ -82,7 +83,7 @@ class BackupFilePathTest extends TestCase
         $fileName = 'backup with spaces & symbols [test].zip';
 
         // Try to download with URL encoding
-        $response = $this->get('/admin/backup/download/local/' . urlencode($fileName));
+        $response = $this->get('/backup/download/local/' . urlencode($fileName));
 
         $response->assertStatus(200);
     }
@@ -90,7 +91,7 @@ class BackupFilePathTest extends TestCase
     /** @test */
     public function it_returns_404_for_non_existent_files()
     {
-        $response = $this->get('/admin/backup/download/local/non-existent-file.zip');
+        $response = $this->get('/backup/download/local/non-existent-file.zip');
 
         $response->assertStatus(404);
     }
@@ -102,7 +103,7 @@ class BackupFilePathTest extends TestCase
         Storage::disk('local')->put('laravel-backup/2024/01/17/backup-new.zip', 'new backup');
         Storage::disk('local')->put('laravel-backup/2024/01/16/backup-old.zip', 'old backup');
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $backupDestinations = $response->viewData('backupDestinations');

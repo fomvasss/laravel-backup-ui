@@ -30,7 +30,7 @@ class BackupUiServiceProvider extends ServiceProvider
     protected function registerRoutes()
     {
         Route::group([
-            'prefix' => config('backup-ui.route_prefix', 'admin/backup'),
+            'prefix' => config('backup-ui.route_prefix', 'backup'),
             'middleware' => config('backup-ui.middleware', ['web']),
         ], function () {
             $this->loadRoutesFrom(__DIR__ . '/routes/web.php');

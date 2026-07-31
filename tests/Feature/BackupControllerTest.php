@@ -3,9 +3,11 @@
 namespace Fomvasss\LaravelBackupUi\Tests\Feature;
 
 use Fomvasss\LaravelBackupUi\Tests\TestCase;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Artisan;
+use Mockery;
 
 class BackupControllerTest extends TestCase
 {
@@ -17,12 +19,33 @@ class BackupControllerTest extends TestCase
 
         // Mock storage disk
         Storage::fake('local');
+
+        $this->actingAs($this->createUser());
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
+    }
+
+    /**
+     * Artisan's console kernel is a final class since Laravel 12,
+     * so Artisan::shouldReceive() can no longer mock it directly.
+     */
+    protected function mockArtisanKernel(): \Mockery\MockInterface
+    {
+        $kernel = Mockery::mock(ConsoleKernel::class);
+        $this->app->instance(ConsoleKernel::class, $kernel);
+        Artisan::clearResolvedInstance(ConsoleKernel::class);
+
+        return $kernel;
     }
 
     /** @test */
     public function it_can_display_backup_index_page()
     {
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
         $response->assertViewIs('backup-ui::index');
@@ -33,20 +56,17 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication_by_default()
     {
-        $this->app['config']->set('backup-ui.middleware', ['web', 'auth']);
+        auth()->logout();
 
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
-        $response->assertRedirect('/login');
+        $response->assertStatus(403);
     }
 
     /** @test */
     public function authenticated_users_can_access_backup_page()
     {
-        $user = $this->createUser();
-        $this->actingAs($user);
-
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
 
         $response->assertStatus(200);
     }
@@ -54,16 +74,11 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_can_create_full_backup()
     {
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('backup:run')
-            ->andReturn(0);
+        $kernel = $this->mockArtisanKernel();
+        $kernel->shouldReceive('call')->once()->with('backup:run')->andReturn(0);
+        $kernel->shouldReceive('output')->once()->andReturn('Backup completed successfully');
 
-        Artisan::shouldReceive('output')
-            ->once()
-            ->andReturn('Backup completed successfully');
-
-        $response = $this->post('/admin/backup/create');
+        $response = $this->post('/backup/create');
 
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Backup created successfully!');
@@ -72,16 +87,11 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_can_create_database_only_backup()
     {
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('backup:run', ['--only-db' => true])
-            ->andReturn(0);
+        $kernel = $this->mockArtisanKernel();
+        $kernel->shouldReceive('call')->once()->with('backup:run', ['--only-db' => true])->andReturn(0);
+        $kernel->shouldReceive('output')->once()->andReturn('Database backup completed successfully');
 
-        Artisan::shouldReceive('output')
-            ->once()
-            ->andReturn('Database backup completed successfully');
-
-        $response = $this->post('/admin/backup/create', ['option' => 'only-db']);
+        $response = $this->post('/backup/create', ['option' => 'only-db']);
 
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Backup created successfully!');
@@ -90,16 +100,11 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_can_create_files_only_backup()
     {
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('backup:run', ['--only-files' => true])
-            ->andReturn(0);
+        $kernel = $this->mockArtisanKernel();
+        $kernel->shouldReceive('call')->once()->with('backup:run', ['--only-files' => true])->andReturn(0);
+        $kernel->shouldReceive('output')->once()->andReturn('Files backup completed successfully');
 
-        Artisan::shouldReceive('output')
-            ->once()
-            ->andReturn('Files backup completed successfully');
-
-        $response = $this->post('/admin/backup/create', ['option' => 'only-files']);
+        $response = $this->post('/backup/create', ['option' => 'only-files']);
 
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Backup created successfully!');
@@ -108,12 +113,10 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_handles_backup_creation_failure()
     {
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('backup:run')
-            ->andThrow(new \Exception('Backup failed'));
+        $this->mockArtisanKernel()
+            ->shouldReceive('call')->once()->with('backup:run')->andThrow(new \Exception('Backup failed'));
 
-        $response = $this->post('/admin/backup/create');
+        $response = $this->post('/backup/create');
 
         $response->assertRedirect();
         $response->assertSessionHas('error', 'Backup failed: Backup failed');
@@ -122,7 +125,7 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_validates_backup_creation_options()
     {
-        $response = $this->post('/admin/backup/create', ['option' => 'invalid-option']);
+        $response = $this->post('/backup/create', ['option' => 'invalid-option']);
 
         $response->assertSessionHasErrors('option');
     }
@@ -132,16 +135,16 @@ class BackupControllerTest extends TestCase
     {
         Storage::disk('local')->put('backup-file.zip', 'fake backup content');
 
-        $response = $this->get('/admin/backup/download/local/backup-file.zip');
+        $response = $this->get('/backup/download/local/backup-file.zip');
 
         $response->assertStatus(200);
-        $response->assertHeader('content-disposition', 'attachment; filename="backup-file.zip"');
+        $response->assertHeader('content-disposition', 'attachment; filename=backup-file.zip');
     }
 
     /** @test */
     public function it_returns_404_for_non_existent_backup_file()
     {
-        $response = $this->get('/admin/backup/download/local/non-existent-file.zip');
+        $response = $this->get('/backup/download/local/non-existent-file.zip');
 
         $response->assertStatus(404);
     }
@@ -151,7 +154,7 @@ class BackupControllerTest extends TestCase
     {
         Storage::disk('local')->put('backup-to-delete.zip', 'content to be deleted');
 
-        $response = $this->delete('/admin/backup/delete/local/backup-to-delete.zip');
+        $response = $this->delete('/backup/delete/local/backup-to-delete.zip');
 
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Backup deleted successfully!');
@@ -161,7 +164,7 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_handles_deletion_of_non_existent_file()
     {
-        $response = $this->delete('/admin/backup/delete/local/non-existent-file.zip');
+        $response = $this->delete('/backup/delete/local/non-existent-file.zip');
 
         $response->assertRedirect();
         $response->assertSessionHas('error', 'Backup file not found');
@@ -170,12 +173,10 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_can_clean_old_backups()
     {
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('backup:clean')
-            ->andReturn(0);
+        $this->mockArtisanKernel()
+            ->shouldReceive('call')->once()->with('backup:clean')->andReturn(0);
 
-        $response = $this->post('/admin/backup/clean');
+        $response = $this->post('/backup/clean');
 
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Old backups cleaned successfully!');
@@ -184,12 +185,10 @@ class BackupControllerTest extends TestCase
     /** @test */
     public function it_handles_clean_command_failure()
     {
-        Artisan::shouldReceive('call')
-            ->once()
-            ->with('backup:clean')
-            ->andThrow(new \Exception('Clean failed'));
+        $this->mockArtisanKernel()
+            ->shouldReceive('call')->once()->with('backup:clean')->andThrow(new \Exception('Clean failed'));
 
-        $response = $this->post('/admin/backup/clean');
+        $response = $this->post('/backup/clean');
 
         $response->assertRedirect();
         $response->assertSessionHas('error', 'Clean failed: Clean failed');
@@ -205,12 +204,12 @@ class BackupControllerTest extends TestCase
 
         // Test unauthorized user
         $this->actingAs($unauthorizedUser);
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
         $response->assertStatus(403);
 
         // Test authorized user
         $this->actingAs($authorizedUser);
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
         $response->assertStatus(200);
     }
 
@@ -226,12 +225,12 @@ class BackupControllerTest extends TestCase
 
         // Test regular user
         $this->actingAs($regularUser);
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
         $response->assertStatus(403);
 
         // Test admin user
         $this->actingAs($adminUser);
-        $response = $this->get('/admin/backup');
+        $response = $this->get('/backup');
         $response->assertStatus(200);
     }
 
@@ -242,7 +241,7 @@ class BackupControllerTest extends TestCase
         Storage::disk('local')->put($filename, 'backup content');
 
         $encodedFilename = urlencode($filename);
-        $response = $this->get("/admin/backup/download/local/{$encodedFilename}");
+        $response = $this->get("/backup/download/local/{$encodedFilename}");
 
         $response->assertStatus(200);
     }

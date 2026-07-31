@@ -14,6 +14,7 @@ class QueueBackupTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+        $this->actingAs($this->createUser());
     }
 
     /** @test */
