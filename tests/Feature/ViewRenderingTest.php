@@ -232,7 +232,7 @@ class ViewRenderingTest extends TestCase
         $content = $view->render();
 
         $this->assertStringContainsString('progress-bar', $content);
-        $this->assertStringContainsString('Creating Backup', $content);
-        $this->assertStringContainsString('may take several minutes', $content);
+        $this->assertStringContainsString('Processing...', $content);
+        $this->assertStringContainsString('may take a while', $content);
     }
 }

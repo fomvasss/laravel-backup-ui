@@ -51,6 +51,52 @@ class BackupControllerTest extends TestCase
         $response->assertViewIs('backup-ui::index');
         $response->assertViewHas('backupDestinations');
         $response->assertViewHas('pageTitle', 'Test Backup Management');
+        $response->assertViewHas('activeProgressKey', null);
+    }
+
+    /** @test */
+    public function it_resumes_progress_display_for_a_still_running_job()
+    {
+        \Illuminate\Support\Facades\Cache::put('some_progress_key', [
+            'percentage' => 40,
+            'message' => 'Still working...',
+            'status' => 'processing',
+            'updated_at' => now()->toIso8601String(),
+        ], 3600);
+        session(['active_progress_key' => 'some_progress_key']);
+
+        $response = $this->get('/backup');
+
+        $response->assertViewHas('activeProgressKey', 'some_progress_key');
+        $this->assertEquals('some_progress_key', session('active_progress_key'));
+    }
+
+    /** @test */
+    public function it_clears_the_progress_key_once_the_job_has_finished()
+    {
+        \Illuminate\Support\Facades\Cache::put('finished_progress_key', [
+            'percentage' => 100,
+            'message' => 'Done',
+            'status' => 'success',
+            'updated_at' => now()->toIso8601String(),
+        ], 3600);
+        session(['active_progress_key' => 'finished_progress_key']);
+
+        $response = $this->get('/backup');
+
+        $response->assertViewHas('activeProgressKey', null);
+        $this->assertNull(session('active_progress_key'));
+    }
+
+    /** @test */
+    public function it_clears_the_progress_key_when_it_has_expired_from_cache()
+    {
+        session(['active_progress_key' => 'expired-key-not-in-cache']);
+
+        $response = $this->get('/backup');
+
+        $response->assertViewHas('activeProgressKey', null);
+        $this->assertNull(session('active_progress_key'));
     }
 
     /** @test */

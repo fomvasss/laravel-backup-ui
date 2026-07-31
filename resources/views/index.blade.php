@@ -169,6 +169,19 @@
                                                            title="Download backup">
                                                             <i class="fas fa-download"></i>
                                                         </a>
+                                                        @if(app()->environment('local'))
+                                                            <form method="POST"
+                                                                  action="{{ route('backup-ui.restore', [$destination['name'], urlencode(basename($backup['path']))]) }}"
+                                                                  class="d-inline">
+                                                                @csrf
+                                                                <button type="submit"
+                                                                        class="btn btn-outline-warning restore-backup"
+                                                                        title="Restore database from this backup"
+                                                                        onclick="return confirm('This will OVERWRITE your local database with the contents of this backup. Continue?')">
+                                                                    <i class="fas fa-undo"></i>
+                                                                </button>
+                                                            </form>
+                                                        @endif
                                                         <form method="POST"
                                                               action="{{ route('backup-ui.delete', [$destination['name'], urlencode(basename($backup['path']))]) }}"
                                                               class="d-inline">
@@ -213,7 +226,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fas fa-cog fa-spin me-2"></i>Creating Backup
+                    <i class="fas fa-cog fa-spin me-2"></i>Processing...
                 </h5>
             </div>
             <div class="modal-body text-center py-4">
@@ -227,8 +240,8 @@
                         0%
                     </div>
                 </div>
-                <p id="backup-status-message" class="mb-2">Initializing backup...</p>
-                <small class="text-muted">This may take several minutes for large backups.</small>
+                <p id="backup-status-message" class="mb-2">Please wait...</p>
+                <small class="text-muted">This may take a while for large backups.</small>
             </div>
         </div>
     </div>
@@ -258,7 +271,7 @@ function createBackup(option = '') {
         loadingModal.show();
 
         // Reset progress
-        updateProgress(0, 'Initializing backup...');
+        updateProgress(0, 'Please wait...');
 
         // Submit form
         document.getElementById('backup-option').value = option;
@@ -332,9 +345,10 @@ function checkBackupProgress(progressKey) {
 
 // Check if we need to start polling on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Check for progress_key in session (from redirect)
-    @if(session('progress_key'))
-        const progressKey = '{{ session('progress_key') }}';
+    // Resumes across page reloads — activeProgressKey is checked server-side against
+    // the cached job status on every request, not a one-shot flash value.
+    @if($activeProgressKey ?? null)
+        const progressKey = '{{ $activeProgressKey }}';
 
         // Show modal
         loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));

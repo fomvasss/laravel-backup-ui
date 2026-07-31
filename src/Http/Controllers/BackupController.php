@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Fomvasss\LaravelBackupUi\Support\BackupOutputAnalyzer;
+use Fomvasss\LaravelBackupUi\Support\BackupRestorer;
 use Carbon\Carbon;
 
 class BackupController extends Controller
@@ -30,7 +31,31 @@ class BackupController extends Controller
         return view('backup-ui::index', [
             'backupDestinations' => $backupDestinations,
             'pageTitle' => config('backup-ui.page_title'),
+            'activeProgressKey' => $this->activeProgressKey(),
         ]);
+    }
+
+    /**
+     * The key of the currently running create/restore job, if any — persisted
+     * in the session (not flashed) so progress stays visible across page reloads.
+     */
+    protected function activeProgressKey(): ?string
+    {
+        $key = session('active_progress_key');
+
+        if (!$key) {
+            return null;
+        }
+
+        $progress = Cache::get($key);
+
+        if (!$progress || $progress['status'] !== 'processing') {
+            session()->forget('active_progress_key');
+
+            return null;
+        }
+
+        return $key;
     }
 
     public function create(Request $request)
@@ -62,11 +87,10 @@ class BackupController extends Controller
             // Dispatch job to queue
             \Fomvasss\LaravelBackupUi\Jobs\CreateBackupJob::dispatch($progressKey, $option);
 
-            // Return response with progress key
-            return redirect()->route('backup-ui.index')->with([
-                'info' => 'Backup job has been queued. This page will update automatically when complete.',
-                'progress_key' => $progressKey,
-            ]);
+            session(['active_progress_key' => $progressKey]);
+
+            return redirect()->route('backup-ui.index')
+                ->with('info', 'Backup job has been queued. This page will update automatically when complete.');
 
         } catch (\Throwable $e) {
             Log::error('Failed to queue backup job', [
@@ -314,6 +338,99 @@ class BackupController extends Controller
             return back()->with('error', 'Backup file not found');
         } catch (\Throwable $e) {
             return back()->with('error', 'Delete failed: ' . $e->getMessage());
+        }
+    }
+
+    public function restore($disk, $path)
+    {
+        if (!app()->environment('local')) {
+            abort(403, 'Restore is only available in the local environment.');
+        }
+
+        if (config('backup-ui.queue.enabled', false)) {
+            return $this->restoreAsync($disk, $path);
+        }
+
+        return $this->restoreSync($disk, $path);
+    }
+
+    protected function restoreAsync($disk, $path)
+    {
+        try {
+            $progressKey = 'restore_progress_' . uniqid();
+
+            \Fomvasss\LaravelBackupUi\Jobs\RestoreBackupJob::dispatch($progressKey, $disk, $path);
+
+            session(['active_progress_key' => $progressKey]);
+
+            return redirect()->route('backup-ui.index')
+                ->with('info', 'Restore job has been queued. This page will update automatically when complete.');
+        } catch (\Throwable $e) {
+            Log::error('Failed to queue restore job', [
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to queue restore: ' . $e->getMessage());
+        }
+    }
+
+    protected function restoreSync($disk, $path)
+    {
+        $backupDisk = Storage::disk($disk);
+        $decodedPath = urldecode($path);
+        $restorer = new BackupRestorer();
+
+        $foundPath = $restorer->locateFile($backupDisk, $decodedPath);
+
+        if (!$foundPath) {
+            return back()->with('error', 'Backup file not found');
+        }
+
+        $tempZip = tempnam(sys_get_temp_dir(), 'backup-ui-restore-') . '.zip';
+
+        try {
+            $stream = $backupDisk->readStream($foundPath);
+            $out = fopen($tempZip, 'w');
+            stream_copy_to_stream($stream, $out);
+            fclose($out);
+            fclose($stream);
+
+            [$connectionName, $connectionConfig] = $restorer->resolveConnectionConfig(null);
+
+            $tempDir = storage_path('app/backup-ui-restore-' . uniqid());
+            mkdir($tempDir, 0755, true);
+
+            try {
+                $candidates = $restorer->extractCandidates($tempZip, $tempDir);
+
+                if (empty($candidates)) {
+                    return back()->with('error', 'No database dump found inside the archive (expected db-dumps/*.sql).');
+                }
+
+                $sqlFile = $restorer->resolveDumpFile($candidates, $connectionName);
+
+                if (!$sqlFile) {
+                    return back()->with('error', 'Multiple dumps found in the archive and none matches the current connection — use `php artisan backup-ui:restore` from the console instead.');
+                }
+
+                $restorer->runMysqlImport($sqlFile, $connectionConfig);
+
+                return back()->with('success', 'Database restored successfully!');
+            } finally {
+                $restorer->cleanupDir($tempDir);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Backup UI: Restore failed', [
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Restore failed: ' . $e->getMessage());
+        } finally {
+            @unlink($tempZip);
         }
     }
 

@@ -8,13 +8,13 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Fomvasss\LaravelBackupUi\Jobs\Concerns\TracksProgress;
 use Fomvasss\LaravelBackupUi\Support\BackupOutputAnalyzer;
 
 class CreateBackupJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TracksProgress;
 
     /**
      * The number of seconds the job can run before timing out.
@@ -70,21 +70,21 @@ class CreateBackupJob implements ShouldQueue
     public function handle()
     {
         try {
-            $this->updateProgress(0, 'Starting backup process...');
+            $this->updateProgress($this->progressKey, 0, 'Starting backup process...');
 
             $commandOptions = [];
 
             if ($this->option === 'only-db') {
                 $commandOptions['--only-db'] = true;
-                $this->updateProgress(10, 'Preparing database backup...');
+                $this->updateProgress($this->progressKey, 10, 'Preparing database backup...');
             } elseif ($this->option === 'only-files') {
                 $commandOptions['--only-files'] = true;
-                $this->updateProgress(10, 'Preparing files backup...');
+                $this->updateProgress($this->progressKey, 10, 'Preparing files backup...');
             } else {
-                $this->updateProgress(10, 'Preparing full backup...');
+                $this->updateProgress($this->progressKey, 10, 'Preparing full backup...');
             }
 
-            $this->updateProgress(20, 'Running backup command...');
+            $this->updateProgress($this->progressKey, 20, 'Running backup command...');
 
             // Execute backup command
             if (!empty($commandOptions)) {
@@ -95,7 +95,7 @@ class CreateBackupJob implements ShouldQueue
 
             $output = Artisan::output();
 
-            $this->updateProgress(90, 'Finalizing backup...');
+            $this->updateProgress($this->progressKey, 90, 'Finalizing backup...');
 
             // Check for errors
             if ($exitCode !== 0 || BackupOutputAnalyzer::indicatesFailure($output)) {
@@ -110,12 +110,12 @@ class CreateBackupJob implements ShouldQueue
                     'output' => $output,
                 ]);
 
-                $this->updateProgress(100, $errorMsg, 'error');
-                
+                $this->updateProgress($this->progressKey, 100, $errorMsg, 'error');
+
                 throw new \Exception($errorMsg);
             }
 
-            $this->updateProgress(100, 'Backup completed successfully!', 'success');
+            $this->updateProgress($this->progressKey, 100, 'Backup completed successfully!', 'success');
 
             Log::info('Backup job completed successfully', [
                 'option' => $this->option,
@@ -129,39 +129,10 @@ class CreateBackupJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->updateProgress(100, 'Backup failed: ' . $e->getMessage(), 'error');
+            $this->updateProgress($this->progressKey, 100, 'Backup failed: ' . $e->getMessage(), 'error');
 
             throw $e;
         }
-    }
-
-    /**
-     * Update progress in cache
-     *
-     * @param int $percentage
-     * @param string $message
-     * @param string $status
-     * @return void
-     */
-    protected function updateProgress($percentage, $message, $status = 'processing')
-    {
-        $data = [
-            'percentage' => $percentage,
-            'message' => $message,
-            'status' => $status, // 'processing', 'success', 'error'
-            'updated_at' => now()->toIso8601String(),
-            'option' => $this->option,
-        ];
-
-        // Store in cache for 1 hour
-        Cache::put($this->progressKey, $data, 3600);
-
-        Log::debug('Backup progress updated', [
-            'key' => $this->progressKey,
-            'percentage' => $percentage,
-            'message' => $message,
-            'status' => $status,
-        ]);
     }
 
     /**
@@ -178,6 +149,6 @@ class CreateBackupJob implements ShouldQueue
             'error' => $exception->getMessage(),
         ]);
 
-        $this->updateProgress(100, 'Backup failed after multiple attempts: ' . $exception->getMessage(), 'error');
+        $this->updateProgress($this->progressKey, 100, 'Backup failed after multiple attempts: ' . $exception->getMessage(), 'error');
     }
 }

@@ -4,6 +4,7 @@ namespace Fomvasss\LaravelBackupUi;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use Fomvasss\LaravelBackupUi\Console\Commands\RestoreBackupCommand;
 
 class BackupUiServiceProvider extends ServiceProvider
 {
@@ -25,6 +26,12 @@ class BackupUiServiceProvider extends ServiceProvider
         ], 'backup-ui-views');
 
         $this->registerRoutes();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                RestoreBackupCommand::class,
+            ]);
+        }
     }
 
     protected function registerRoutes()

@@ -13,5 +13,8 @@ Route::get('/download/{disk}/{path}', [BackupController::class, 'download'])
 Route::delete('/delete/{disk}/{path}', [BackupController::class, 'delete'])
     ->where('path', '.*')
     ->name('backup-ui.delete');
+Route::post('/restore/{disk}/{path}', [BackupController::class, 'restore'])
+    ->where('path', '.*')
+    ->name('backup-ui.restore');
 Route::post('/clean', [BackupController::class, 'clean'])->name('backup-ui.clean');
 Route::get('/diagnostics', [DiagnosticsController::class, 'index'])->name('backup-ui.diagnostics');
