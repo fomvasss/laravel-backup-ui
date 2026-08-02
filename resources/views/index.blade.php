@@ -31,6 +31,20 @@
             </div>
         </div>
 
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 text-muted small">
+            <i class="fas fa-database"></i>
+            <span>DB connection: <strong>{{ $currentConnection['name'] }}</strong></span>
+            <span class="badge bg-light text-dark">{{ strtoupper($currentConnection['driver']) }}</span>
+            @if($currentConnection['database'])
+                <span><code>{{ $currentConnection['database'] }}</code>@if($currentConnection['host']) @ {{ $currentConnection['host'] }}@endif</span>
+            @endif
+            @if($currentConnection['restore_supported'])
+                <span class="badge bg-success">Restore supported</span>
+            @else
+                <span class="badge bg-warning">Restore not supported for this driver</span>
+            @endif
+        </div>
+
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 <i class="fas fa-check-circle me-2"></i>{{ session('success') }}

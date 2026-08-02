@@ -8,6 +8,9 @@ use ZipArchive;
 
 class BackupRestorer
 {
+    /** Drivers `runImport()` knows how to restore into. */
+    public const SUPPORTED_DRIVERS = ['mysql', 'mariadb', 'pgsql', 'postgres'];
+
     /**
      * Locate a backup file on disk. The UI only knows the file's basename
      * (same as download/delete), while spatie/laravel-backup actually stores
@@ -45,8 +48,8 @@ class BackupRestorer
             throw new \RuntimeException("Unknown database connection: {$connectionName}");
         }
 
-        if (!in_array($connectionConfig['driver'] ?? null, ['mysql', 'mariadb'], true)) {
-            throw new \RuntimeException('Restore currently supports only mysql/mariadb connections, got: ' . ($connectionConfig['driver'] ?? 'unknown'));
+        if (!in_array($connectionConfig['driver'] ?? null, self::SUPPORTED_DRIVERS, true)) {
+            throw new \RuntimeException('Restore currently supports only mysql/mariadb/pgsql connections, got: ' . ($connectionConfig['driver'] ?? 'unknown'));
         }
 
         return [$connectionName, $connectionConfig];
@@ -88,6 +91,22 @@ class BackupRestorer
         return null;
     }
 
+    /**
+     * Import a SQL dump into the connection, dispatching to the right client
+     * binary for the connection's driver.
+     */
+    public function runImport(string $sqlFile, array $connectionConfig): void
+    {
+        match ($connectionConfig['driver'] ?? null) {
+            'mysql', 'mariadb' => $this->runMysqlImport($sqlFile, $connectionConfig),
+            'pgsql', 'postgres' => $this->runPgsqlImport($sqlFile, $connectionConfig),
+            default => throw new \RuntimeException(
+                'Restore currently supports only mysql/mariadb/pgsql connections, got: '
+                . ($connectionConfig['driver'] ?? 'unknown')
+            ),
+        };
+    }
+
     public function runMysqlImport(string $sqlFile, array $connectionConfig): void
     {
         $credentialsFile = tempnam(sys_get_temp_dir(), 'backup-ui-restore-');
@@ -126,6 +145,46 @@ class BackupRestorer
             }
         } finally {
             @unlink($credentialsFile);
+        }
+    }
+
+    public function runPgsqlImport(string $sqlFile, array $connectionConfig): void
+    {
+        $passfile = tempnam(sys_get_temp_dir(), 'backup-ui-restore-');
+
+        // .pgpass format: hostname:port:database:username:password
+        // (':' and '\' inside a field must be backslash-escaped per the Postgres docs)
+        $escape = fn (string $value): string => str_replace([':', '\\'], ['\\:', '\\\\'], $value);
+
+        $line = implode(':', [
+            $escape((string) $connectionConfig['host']),
+            (string) ($connectionConfig['port'] ?? 5432),
+            $escape($connectionConfig['database']),
+            $escape($connectionConfig['username']),
+            $escape((string) $connectionConfig['password']),
+        ]);
+
+        file_put_contents($passfile, $line . PHP_EOL);
+        chmod($passfile, 0600);
+
+        try {
+            $process = new Process([
+                'psql',
+                '--host=' . $connectionConfig['host'],
+                '--port=' . ($connectionConfig['port'] ?? 5432),
+                '--username=' . $connectionConfig['username'],
+                '--dbname=' . $connectionConfig['database'],
+                '--set=ON_ERROR_STOP=1',
+                '--file=' . $sqlFile,
+            ], null, ['PGPASSFILE' => $passfile]);
+            $process->setTimeout(3600);
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new ProcessFailedException($process);
+            }
+        } finally {
+            @unlink($passfile);
         }
     }
 

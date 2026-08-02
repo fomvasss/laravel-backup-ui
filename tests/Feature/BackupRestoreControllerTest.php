@@ -60,7 +60,7 @@ class BackupRestoreControllerTest extends TestCase
     {
         $this->app['env'] = 'local';
 
-        // Test suite's default connection is sqlite — restore only supports mysql/mariadb.
+        // Test suite's default connection is sqlite — restore only supports mysql/mariadb/pgsql.
         Storage::disk('local')->put('backup.zip', $this->makeZipContents(['db-dumps/sqlite.sql' => 'SELECT 1;']));
 
         $response = $this->post('/backup/restore/local/backup.zip');

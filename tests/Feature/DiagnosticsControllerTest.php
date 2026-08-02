@@ -22,6 +22,7 @@ class DiagnosticsControllerTest extends TestCase
             'spatie_backup_version',
             'writable_directories',
             'external_disks',
+            'database_connection' => ['name', 'driver', 'database', 'host', 'restore_supported'],
         ]);
     }
 
@@ -32,5 +33,16 @@ class DiagnosticsControllerTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertIsString($response->json('spatie_backup_version'));
+    }
+
+    /** @test */
+    public function it_flags_the_test_suites_sqlite_connection_as_restore_unsupported()
+    {
+        // Test suite's default connection is sqlite — not in BackupRestorer::SUPPORTED_DRIVERS.
+        $response = $this->get('/backup/diagnostics');
+
+        $response->assertStatus(200);
+        $this->assertEquals('sqlite', $response->json('database_connection.driver'));
+        $this->assertFalse($response->json('database_connection.restore_supported'));
     }
 }

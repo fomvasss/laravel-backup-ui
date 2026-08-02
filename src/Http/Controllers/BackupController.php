@@ -32,7 +32,28 @@ class BackupController extends Controller
             'backupDestinations' => $backupDestinations,
             'pageTitle' => config('backup-ui.page_title'),
             'activeProgressKey' => $this->activeProgressKey(),
+            'currentConnection' => $this->currentConnectionInfo(),
         ]);
+    }
+
+    /**
+     * Info about the connection `database.default` points at — shown in the UI so it's
+     * obvious up front which database "Restore" would overwrite, and whether its driver
+     * is one BackupRestorer actually supports.
+     */
+    protected function currentConnectionInfo(): array
+    {
+        $name = config('database.default');
+        $config = config("database.connections.{$name}", []);
+        $driver = $config['driver'] ?? 'unknown';
+
+        return [
+            'name' => $name,
+            'driver' => $driver,
+            'database' => $config['database'] ?? null,
+            'host' => $config['host'] ?? null,
+            'restore_supported' => in_array($driver, BackupRestorer::SUPPORTED_DRIVERS, true),
+        ];
     }
 
     /**
@@ -415,7 +436,7 @@ class BackupController extends Controller
                     return back()->with('error', 'Multiple dumps found in the archive and none matches the current connection — use `php artisan backup-ui:restore` from the console instead.');
                 }
 
-                $restorer->runMysqlImport($sqlFile, $connectionConfig);
+                $restorer->runImport($sqlFile, $connectionConfig);
 
                 return back()->with('success', 'Database restored successfully!');
             } finally {
