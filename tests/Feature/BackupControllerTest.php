@@ -52,6 +52,19 @@ class BackupControllerTest extends TestCase
         $response->assertViewHas('backupDestinations');
         $response->assertViewHas('pageTitle', 'Test Backup Management');
         $response->assertViewHas('activeProgressKey', null);
+        $response->assertViewHas('currentConnection');
+    }
+
+    /** @test */
+    public function it_reports_the_current_db_connection_and_whether_restore_supports_it()
+    {
+        // Test suite's default connection is sqlite — not in BackupRestorer::SUPPORTED_DRIVERS.
+        $response = $this->get('/backup');
+
+        $connection = $response->viewData('currentConnection');
+
+        $this->assertEquals('sqlite', $connection['driver']);
+        $this->assertFalse($connection['restore_supported']);
     }
 
     /** @test */

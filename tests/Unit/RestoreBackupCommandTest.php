@@ -48,7 +48,7 @@ class RestoreBackupCommandTest extends TestCase
     {
         $this->app['env'] = 'local';
 
-        // The test suite's default connection is sqlite — restore only supports mysql/mariadb.
+        // The test suite's default connection is sqlite — restore only supports mysql/mariadb/pgsql.
         $zip = $this->makeZip(['db-dumps/sqlite.sql' => 'SELECT 1;']);
 
         $this->artisan('backup-ui:restore', ['path' => $zip])

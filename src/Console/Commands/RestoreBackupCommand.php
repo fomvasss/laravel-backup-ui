@@ -72,7 +72,7 @@ class RestoreBackupCommand extends Command
                 return self::SUCCESS;
             }
 
-            $restorer->runMysqlImport($sqlFile, $connectionConfig);
+            $restorer->runImport($sqlFile, $connectionConfig);
 
             $this->info('Database restored successfully.');
 

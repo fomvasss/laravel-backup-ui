@@ -88,6 +88,33 @@ class BackupRestorerTest extends TestCase
     }
 
     /** @test */
+    public function it_accepts_a_configured_pgsql_connection()
+    {
+        config(['database.connections.pgsql_test' => [
+            'driver' => 'pgsql',
+            'host' => '127.0.0.1',
+            'port' => 5432,
+            'database' => 'test',
+            'username' => 'postgres',
+            'password' => '',
+        ]]);
+
+        [$name, $config] = $this->restorer->resolveConnectionConfig('pgsql_test');
+
+        $this->assertEquals('pgsql_test', $name);
+        $this->assertEquals('pgsql', $config['driver']);
+    }
+
+    /** @test */
+    public function it_rejects_runimport_for_an_unsupported_driver()
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('sqlsrv');
+
+        $this->restorer->runImport('/does/not/matter.sql', ['driver' => 'sqlsrv']);
+    }
+
+    /** @test */
     public function it_extracts_the_single_dump_file_from_a_zip()
     {
         $zip = $this->makeZip(['db-dumps/mysql.sql' => 'CREATE TABLE foo (id INT);']);

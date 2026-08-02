@@ -30,6 +30,7 @@ class ViewRenderingTest extends TestCase
     {
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => collect(),
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Backup Management'
         ]);
 
@@ -69,6 +70,7 @@ class ViewRenderingTest extends TestCase
 
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => $backupDestinations,
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Backup Management'
         ]);
 
@@ -97,6 +99,7 @@ class ViewRenderingTest extends TestCase
 
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => $backupDestinations,
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Backup Management'
         ]);
 
@@ -114,6 +117,7 @@ class ViewRenderingTest extends TestCase
     {
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => collect(),
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Test'
         ]);
 
@@ -146,6 +150,7 @@ class ViewRenderingTest extends TestCase
 
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => $backupDestinations,
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Test'
         ]);
 
@@ -163,6 +168,7 @@ class ViewRenderingTest extends TestCase
     {
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => collect(),
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Test'
         ]);
 
@@ -197,6 +203,7 @@ class ViewRenderingTest extends TestCase
 
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => $backupDestinations,
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Test'
         ]);
 
@@ -226,6 +233,7 @@ class ViewRenderingTest extends TestCase
     {
         $view = $this->app['view']->make('backup-ui::index', [
             'backupDestinations' => collect(),
+            'currentConnection' => ['name' => 'testing', 'driver' => 'sqlite', 'database' => null, 'host' => null, 'restore_supported' => false],
             'pageTitle' => 'Test'
         ]);
 

@@ -11,6 +11,7 @@ A beautiful web interface for managing [spatie/laravel-backup](https://github.co
 - Backup status monitoring
 - Create backups (full, database-only, files-only)
 - Restore a backup's database dump (local environment only)
+- Shows the current `database.default` connection (name, driver, database, host) and whether restore supports it
 - Asynchronous backup creation and restore via queues, with real-time progress tracking
 - Download and delete individual backups
 - Clean old backups
@@ -196,7 +197,7 @@ After installation, the backup interface will be available at `/backup` (or your
 
 ### Restoring a Backup
 
-Restoring overwrites your database, so it only ever runs when `APP_ENV=local` — the "Restore" button is neither rendered nor functional (403) in any other environment, and there is no restore route/action available at all outside local. Currently only `mysql`/`mariadb` connections are supported.
+Restoring overwrites your database, so it only ever runs when `APP_ENV=local` — the "Restore" button is neither rendered nor functional (403) in any other environment, and there is no restore route/action available at all outside local. Currently only `mysql`/`mariadb`/`pgsql` connections are supported — mysql/mariadb via the `mysql` client, pgsql via `psql` (both must be installed and on `PATH`).
 
 **From the UI:** click the restore icon next to any listed backup (any configured disk — local, S3, Google Drive, etc.). It downloads the archive if needed, extracts the `db-dumps/*.sql` file matching your current `database.default` connection, asks for confirmation, and runs the import. Runs synchronously or via queue depending on `backup-ui.queue.enabled`, same as backup creation.
 
@@ -206,6 +207,7 @@ Restoring overwrites your database, so it only ever runs when `APP_ENV=local` �
 php artisan backup-ui:restore /path/to/backup.zip
 # or restore into a specific connection:
 php artisan backup-ui:restore /path/to/backup.zip --connection=mysql
+php artisan backup-ui:restore /path/to/backup.zip --connection=pgsql
 ```
 
 The command guards on `APP_ENV=local` the same way, asks for confirmation before overwriting, and prompts you to pick a dump if the archive contains more than one and none matches the target connection by name.

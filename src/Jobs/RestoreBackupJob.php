@@ -78,7 +78,7 @@ class RestoreBackupJob implements ShouldQueue
 
             $this->updateProgress($this->progressKey, 60, 'Restoring database...');
 
-            $restorer->runMysqlImport($sqlFile, $connectionConfig);
+            $restorer->runImport($sqlFile, $connectionConfig);
 
             $this->updateProgress($this->progressKey, 100, 'Database restored successfully!', 'success');
         } catch (\Throwable $e) {

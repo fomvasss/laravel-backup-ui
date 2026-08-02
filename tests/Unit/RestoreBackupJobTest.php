@@ -40,7 +40,7 @@ class RestoreBackupJobTest extends TestCase
     /** @test */
     public function it_records_an_error_progress_entry_for_unsupported_driver()
     {
-        // Test suite's default connection is sqlite — restore only supports mysql/mariadb.
+        // Test suite's default connection is sqlite — restore only supports mysql/mariadb/pgsql.
         Storage::disk('local')->put('backup.zip', 'not a real zip, but exists() is all that matters here');
 
         $progressKey = 'restore_progress_test';

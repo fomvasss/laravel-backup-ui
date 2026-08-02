@@ -2,6 +2,7 @@
 
 namespace Fomvasss\LaravelBackupUi\Http\Controllers;
 
+use Fomvasss\LaravelBackupUi\Support\BackupRestorer;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -16,9 +17,25 @@ class DiagnosticsController extends Controller
             'spatie_backup_version' => $this->getSpatieBackupVersion(),
             'writable_directories' => $this->checkWritableDirectories(),
             'external_disks' => $this->checkExternalDisks(),
+            'database_connection' => $this->getDatabaseConnectionInfo(),
         ];
 
         return response()->json($diagnostics);
+    }
+
+    protected function getDatabaseConnectionInfo(): array
+    {
+        $name = config('database.default');
+        $config = config("database.connections.{$name}", []);
+        $driver = $config['driver'] ?? 'unknown';
+
+        return [
+            'name' => $name,
+            'driver' => $driver,
+            'database' => $config['database'] ?? null,
+            'host' => $config['host'] ?? null,
+            'restore_supported' => in_array($driver, BackupRestorer::SUPPORTED_DRIVERS, true),
+        ];
     }
 
 
