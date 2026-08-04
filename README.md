@@ -139,46 +139,7 @@ The package fully supports external backup disks including:
 - Proper streaming for large backup file downloads
 - Error logging for troubleshooting remote disk issues
 
-**Configuration example for S3:**
-```php
-// config/filesystems.php
-'disks' => [
-    's3-backups' => [
-        'driver' => 's3',
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
-        'region' => env('AWS_DEFAULT_REGION'),
-        'bucket' => env('AWS_BUCKET'),
-        'url' => env('AWS_URL'),
-        'endpoint' => env('AWS_ENDPOINT'),
-    ],
-],
-
-// config/backup.php
-'backup' => [
-    'destination' => [
-        'disks' => ['s3-backups'],
-    ],
-],
-```
-
-**Configuration example for FTP:**
-```php
-// config/filesystems.php
-'disks' => [
-    'ftp-backups' => [
-        'driver' => 'ftp',
-        'host' => env('FTP_HOST'),
-        'username' => env('FTP_USERNAME'),
-        'password' => env('FTP_PASSWORD'),
-        'port' => env('FTP_PORT', 21),
-        'root' => env('FTP_ROOT', '/backups'),
-        'passive' => true,
-        'ssl' => false,
-        'timeout' => 30,
-    ],
-],
-```
+Disks themselves are configured the standard Laravel way in `config/filesystems.php`, then listed under `backup.destination.disks` in `config/backup.php` — see the [Laravel Filesystem docs](https://laravel.com/docs/filesystem) and [spatie/laravel-backup docs](https://spatie.be/docs/laravel-backup) for driver-specific options.
 
 **Note:** For external disks, file operations (download/delete) may take longer due to network latency. The interface will show appropriate loading states.
 
